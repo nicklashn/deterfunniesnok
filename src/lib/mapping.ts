@@ -17,7 +17,8 @@ const SYNONYMS: Record<Field, string[]> = {
   orderId: ['ordreid', 'ordrenr', 'ordrenummer', 'ordre', 'orderid', 'ordernumber', 'orderno', 'ordernr', 'order', 'bestillingsnr'],
   product: ['produktnavn', 'produkt', 'varenavn', 'vare', 'productname', 'product', 'lineitemname', 'itemname', 'item', 'producttitle', 'title', 'artikel'],
   qty: ['antal', 'stk', 'styk', 'mængde', 'quantity', 'qty', 'lineitemquantity', 'units', 'count'],
-  amount: ['linjebeløb', 'linjetotal', 'beløb', 'belob', 'omsætning', 'linetotal', 'lineitemtotal', 'total', 'revenue', 'amount', 'sum', 'pris', 'price', 'lineitemprice', 'subtotal'],
+  // Line-level amounts first: Shopify's "Total" is the whole order and only sits on its first line
+  amount: ['linjebeløb', 'linjetotal', 'linetotal', 'lineitemtotal', 'lineitemprice', 'beløb', 'belob', 'omsætning', 'total', 'revenue', 'amount', 'sum', 'pris', 'price', 'subtotal'],
   imageUrl: ['produktbilledeurl', 'produktbillede', 'billedurl', 'billede', 'imageurl', 'image', 'imagesrc', 'img', 'picture', 'thumbnail'],
 };
 
@@ -28,10 +29,22 @@ export function isCustomerColumn(header: string): boolean {
   return CUSTOMER.test(norm(header));
 }
 
+/** Shopify's order export: one row per line item, with "Lineitem …" columns. */
+const isShopify = (headers: string[]) => headers.some((h) => norm(h).startsWith('lineitem'));
+
 export function autoDetect(headers: string[]): Mapping {
   const mapping: Mapping = { time: null, orderId: null, product: null, qty: null, amount: null, imageUrl: null };
   const used = new Set<number>();
   const candidates = headers.map((h, i) => ({ i, n: norm(h) })).filter((c) => !isCustomerColumn(headers[c.i]) && c.n);
+
+  // In a Shopify export the order number ("#1001") is the column called just "Name"
+  if (isShopify(headers)) {
+    const name = candidates.find((c) => c.n === 'name');
+    if (name) {
+      mapping.orderId = name.i;
+      used.add(name.i);
+    }
+  }
 
   // Two passes: exact synonym matches first, then "contains" matches.
   for (const exact of [true, false]) {
@@ -48,6 +61,15 @@ export function autoDetect(headers: string[]): Mapping {
     }
   }
   return mapping;
+}
+
+/** Price columns hold the price per item; everything else is taken as the line total. */
+export function guessAmountMode(headers: string[], mapping: Mapping): AmountMode {
+  if (mapping.amount === null) return 'line';
+  const n = norm(headers[mapping.amount]);
+  if (n === 'lineitemprice') return 'unit';
+  if (/total|sum|beløb|belob|omsætning|revenue|amount/.test(n)) return 'line';
+  return /price|pris/.test(n) ? 'unit' : 'line';
 }
 
 export interface BuildResult {

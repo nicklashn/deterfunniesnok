@@ -51,7 +51,8 @@ export function parseDate(raw: string): number | null {
 
   // ISO with explicit zone (Z or ±hh:mm) — let the engine handle the offset.
   if (/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(:\d{2}(\.\d+)?)?\s*(Z|[+-]\d{2}:?\d{2})$/i.test(s)) {
-    const t = Date.parse(s.replace(' ', 'T').replace(/\s+/, ''));
+    // Normalise "+0100" to "+01:00" (Shopify writes the former; Safari only parses the latter)
+    const t = Date.parse(s.replace(' ', 'T').replace(/\s+/, '').replace(/([+-]\d{2})(\d{2})$/, '$1:$2'));
     return Number.isNaN(t) ? null : t;
   }
 

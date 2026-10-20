@@ -4,7 +4,7 @@ import { MappingScreen } from './components/MappingScreen';
 import { DEFAULT_SETTINGS, SetupScreen, type RaceSettings } from './components/SetupScreen';
 import { Player } from './components/Player';
 import { parseCsv, type ParsedCsv } from './lib/csv';
-import { autoDetect, buildLines, missingRequired, type BuildResult } from './lib/mapping';
+import { autoDetect, buildLines, guessAmountMode, missingRequired, type BuildResult } from './lib/mapping';
 import { buildRace, periodPresets } from './lib/race';
 import { generateSampleCsv } from './lib/sample';
 import type { AmountMode, Mapping } from './lib/types';
@@ -36,9 +36,10 @@ export default function App() {
     setError(null);
     setSource({ name, csv });
     setMapping(m);
-    setAmountMode('line');
+    const mode = guessAmountMode(csv.headers, m);
+    setAmountMode(mode);
     if (skipMappingIfComplete && missingRequired(m).length === 0) {
-      setBuilt(buildLines(csv.rows, m, 'line'));
+      setBuilt(buildLines(csv.rows, m, mode));
       setStep('setup');
     } else setStep('mapping');
   };
