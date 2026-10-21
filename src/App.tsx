@@ -55,7 +55,7 @@ export default function App() {
     setMapping(m);
     setBuilt(b);
     const q = new URLSearchParams(window.location.search);
-    setSettings({ ...DEFAULT_SETTINGS, start: all.start, end: all.end, durationSec: 60, showRevenue: q.has('omsaetning'), company: q.get('firma') ?? '' });
+    setSettings({ ...DEFAULT_SETTINGS, start: all.start, end: all.end, durationSec: 60, showRevenue: q.has('omsaetning'), company: '' });
     setStep('play');
   }, []);
 
